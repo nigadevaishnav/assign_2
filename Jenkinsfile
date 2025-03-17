@@ -2,46 +2,68 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'nigadevaishnav/assign_2'
-        SONARQUBE_URL = 'http://localhost:9000'
+        DOCKER_IMAGE = "nigadevaishnav/assign_2"
+        SONARQUBE_SERVER = "SonarQube"
     }
 
     stages {
         stage('Clone Repository') {
             steps {
-                git branch: 'main', credentialsId: 'git-credentials', url: 'https://github.com/nigadevaishnav/assign_2.git'
+                git branch: 'main', url: 'https://github.com/nigadevaishnav/assign_2.git'
             }
         }
 
-        stage('Build Project') {
+        stage('Build and Test') {
             steps {
-                sh 'echo "Building project..."'
-            }
-        }
+                script {
+                    def language = "java"  // Change to "nodejs" if using JavaScript
 
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('SonarQube-Scanner') {
-                    sh 'echo "Running SonarQube Analysis..."'
+                    if (language == "java") {
+                        sh 'mvn clean package'
+                    } else if (language == "nodejs") {
+                        sh 'npm install && npm test'
+                    }
                 }
             }
         }
 
-        stage('Docker Build & Push') {
+        stage('Code Analysis with SonarQube') {
             steps {
-                withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
-                    sh """
-                        docker build -t ${DOCKER_IMAGE} .
-                        docker push ${DOCKER_IMAGE}
-                    """
+                withSonarQubeEnv('SonarQube') {
+                    sh 'mvn sonar:sonar' // For Java projects
                 }
             }
         }
 
-        stage('Deploy') {
+        stage('Build Docker Image') {
             steps {
-                sh 'docker run -d -p 8080:8080 ${DOCKER_IMAGE}'
+                sh 'docker build -t $DOCKER_IMAGE .'
+            }
+        }
+
+        stage('Push Docker Image to Docker Hub') {
+            steps {
+                withCredentials([string(credentialsId: 'docker-hub-credentials', variable: 'DOCKER_PASSWORD')]) {
+                    sh 'echo $DOCKER_PASSWORD | docker login -u nigadevaishnav --password-stdin'
+                    sh 'docker push $DOCKER_IMAGE'
+                }
+            }
+        }
+
+        stage('Deploy Docker Container') {
+            steps {
+                sh 'docker run -d --name assign_2_container -p 8080:8080 $DOCKER_IMAGE'
             }
         }
     }
+
+    post {
+        success {
+            echo "Pipeline executed successfully!"
+        }
+        failure {
+            echo "Pipeline failed. Check logs!"
+        }
+    }
 }
+
