@@ -37,7 +37,11 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $DOCKER_IMAGE .'
+               script {
+            sh 'docker build -t nigadevaishnav/assign_2 .'
+                      }
+
+              
             }
         }
 
