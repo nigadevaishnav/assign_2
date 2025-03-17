@@ -1,10 +1,10 @@
-# Use an official Maven image as a build stage
+# Use official Maven image to build the project
 FROM maven:3.8.6-openjdk-17 AS build
 
 # Set working directory
 WORKDIR /app
 
-# Copy pom.xml and download dependencies (to leverage Docker cache)
+# Copy the pom.xml file and download dependencies first (for caching)
 COPY pom.xml .
 RUN mvn dependency:go-offline
 
@@ -12,18 +12,18 @@ RUN mvn dependency:go-offline
 COPY src ./src
 RUN mvn clean package -DskipTests
 
-# Use an official OpenJDK image for running the app
+# Use a lightweight JDK image for running the application
 FROM openjdk:17-jdk-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy the built JAR file from the build stage
+# Copy the built JAR file from the Maven build stage
 COPY --from=build /app/target/*.jar app.jar
 
-# Expose the port your app runs on (change if needed)
+# Expose the application's running port
 EXPOSE 8080
 
-# Command to run the application
+# Run the application
 CMD ["java", "-jar", "app.jar"]
 
